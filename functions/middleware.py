@@ -52,18 +52,17 @@ class FunctionsWebhookMiddleware(object):
                     })
                     self.logger.info("Serverless: data to send to a function {}"
                                      .format(str(data)))
-                    webhook_req = urllib2.Request(webhook, data=data)
+                    data_as_bytes = data.encode('utf-8')
+                    webhook_req = urllib2.Request(webhook, data=data_as_bytes)
                     webhook_req.add_header('Content-Type',
                                            'application/json')
-                    data_as_bytes = data.encode('utf-8')
                     webhook_req.add_header(
                         'Content-Length', len(data_as_bytes))
-                    self.logger.info("serverless: data to send as bytes {}"
+                    self.logger.info("Serverless: data to send as bytes {}"
                                      .format(data_as_bytes))
                     with Timeout(60):
                         try:
-                            result = urllib2.urlopen(
-                                webhook_req, data_as_bytes).read()
+                            result = urllib2.urlopen(webhook_req).read()
                             self.logger.info(
                                 "Serverless: function worked fine. Result {}"
                                 .format(str(result)))
