@@ -58,9 +58,9 @@ class FunctionsWebhookMiddleware(object):
                             result = urllib2.urlopen(webhook_req).read()
                             self.logger.info("Serverless: function worked fine. Result {}"
                                              .format(str(result)))
-                        except (Exception, Timeout):
-                            self.logger.erro(
-                                'Serverless: failed POST to webhook %s' % webhook)
+                        except (Exception, Timeout) as ex:
+                            self.logger.error(
+                                'Serverless: failed POST to webhook {}, error {}'.format(webhook, str(ex)))
         except ValueError:
             # not an object request
             pass
