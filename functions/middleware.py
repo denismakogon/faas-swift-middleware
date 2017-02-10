@@ -35,7 +35,7 @@ class FunctionsWebhookMiddleware(object):
     def __call__(self, env, start_response):
         req = Request(env)
         resp = req.get_response(self.app)
-        self.logger.info("available headers: {}".format(str(req.headers)))
+        self.logger.info("available headers: {}".format(str(dict(req.headers))))
         try:
             if "x-function-url" in req.headers:
                 version, account, container, obj = split_path(req.path_info, 4, 4, True)
@@ -43,14 +43,16 @@ class FunctionsWebhookMiddleware(object):
                                  .format(version, account, container, obj))
                 if obj and is_success(resp.status_int) and req.method == 'PUT':
                     webhook = req.headers.get("x-function-url")
-                    webhook_req = urllib2.Request(webhook, data=json.dumps({
+                    data = json.dumps({
                         "x-auth-token": req.headers.get("x-auth-token"),
                         "version": version,
                         "account": account,
                         "container": container,
                         "object": obj,
                         "project_id": account[account.index('_') + 1:],
-                    }))
+                    })
+                    self.logger.info("Data to send to a function {}".format(str(data)))
+                    webhook_req = urllib2.Request(webhook, data=data)
                     with Timeout(60):
                         try:
                             result = urllib2.urlopen(webhook_req).read()
@@ -67,7 +69,7 @@ class FunctionsWebhookMiddleware(object):
             pass
 
         self.logger.info("Skipping functions middleware due to absence of function URL")
-        return resp
+        return self.app(env, start_response)
 
 
 def filter_factory(global_conf, **local_conf):
