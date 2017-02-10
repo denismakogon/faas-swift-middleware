@@ -37,19 +37,19 @@ class FunctionsWebhookMiddleware(object):
         resp = req.get_response(self.app)
         self.logger.info("Serverless: available headers: {}".format(str(dict(req.headers))))
         try:
-            if "x-function-url" in req.headers:
+            if "X-Functions-URL" in req.headers:
                 version, account, container, obj = split_path(req.path_info, 4, 4, True)
                 self.logger.info("Serverless: version {}, account {}, container {}, object {}"
                                  .format(version, account, container, obj))
                 if obj and is_success(resp.status_int) and req.method == 'PUT':
-                    webhook = req.headers.get("x-function-url")
+                    webhook = req.headers.get("X-Function-URL")
                     data = json.dumps({
-                        "x-auth-token": req.headers.get("x-auth-token"),
+                        "x-auth-token": req.headers.get("X-Auth-Token"),
                         "version": version,
                         "account": account,
                         "container": container,
                         "object": obj,
-                        "project_id": account[account.index('_') + 1:],
+                        "project_id": req.headers.get("X-Project-Id"),
                     })
                     self.logger.info("Serverless: data to send to a function {}".format(str(data)))
                     webhook_req = urllib2.Request(webhook, data=data)
