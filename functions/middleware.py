@@ -71,7 +71,7 @@ class FunctionsWebhookMiddleware(object):
         return resp
 
 
-def webhook_factory(global_conf, **local_conf):
+def filter_factory(global_conf, **local_conf):
     conf = global_conf.copy()
     conf.update(local_conf)
 
