@@ -35,11 +35,11 @@ class FunctionsWebhookMiddleware(object):
     def __call__(self, env, start_response):
         req = Request(env)
         resp = req.get_response(self.app)
-        self.logger.info("available headers: {}".format(str(dict(req.headers))))
+        self.logger.info("Serverless: available headers: {}".format(str(dict(req.headers))))
         try:
             if "x-function-url" in req.headers:
                 version, account, container, obj = split_path(req.path_info, 4, 4, True)
-                self.logger.info("Version {}, account {}, container {}, object {}"
+                self.logger.info("Serverless: version {}, account {}, container {}, object {}"
                                  .format(version, account, container, obj))
                 if obj and is_success(resp.status_int) and req.method == 'PUT':
                     webhook = req.headers.get("x-function-url")
@@ -51,24 +51,21 @@ class FunctionsWebhookMiddleware(object):
                         "object": obj,
                         "project_id": account[account.index('_') + 1:],
                     })
-                    self.logger.info("Data to send to a function {}".format(str(data)))
+                    self.logger.info("Serverless: data to send to a function {}".format(str(data)))
                     webhook_req = urllib2.Request(webhook, data=data)
                     with Timeout(60):
                         try:
                             result = urllib2.urlopen(webhook_req).read()
-                            self.logger.info("Function worked fine. Result {}"
+                            self.logger.info("Serverless: function worked fine. Result {}"
                                              .format(str(result)))
                         except (Exception, Timeout):
-                            self.logger.exception(
-                                'failed POST to webhook %s' % webhook)
-                        else:
-                            self.logger.info(
-                                'successfully called webhook %s' % webhook)
+                            self.logger.erro(
+                                'Serverless: failed POST to webhook %s' % webhook)
         except ValueError:
             # not an object request
             pass
 
-        self.logger.info("Skipping functions middleware due to absence of function URL")
+        self.logger.info("Serverless: skipping functions middleware due to absence of function URL")
         return self.app(env, start_response)
 
 
