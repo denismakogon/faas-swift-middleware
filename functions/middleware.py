@@ -14,7 +14,7 @@
 import json
 
 from swift.common.http import is_success
-from swift.common.swob import wsgify
+from swift.common.swob import Request
 from swift.common.utils import split_path, get_logger
 from swift.common.request_helper import get_sys_meta_prefix
 from swift.proxy.controllers.base import get_container_info
@@ -37,8 +37,8 @@ class FunctionsWebhookMiddleware(object):
         self.app = app
         self.logger = get_logger(conf, log_route='functions_webhook')
 
-    @wsgify
-    def __call__(self, req):
+    def __call__(self, env, start_response):
+        req = Request(env)
         obj = None
         try:
             version, account, container, obj = split_path(req.path_info, 4, 4, True)
