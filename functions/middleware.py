@@ -35,12 +35,12 @@ class FunctionsWebhookMiddleware(object):
     def __call__(self, env, start_response):
         req = Request(env)
         resp = req.get_response(self.app)
+        self.logger.info("available headers: {}".format(str(req.headers)))
         try:
             if "x-function-url" in req.headers:
                 version, account, container, obj = split_path(req.path_info, 4, 4, True)
                 self.logger.info("Version {}, account {}, container {}, object {}"
                                  .format(version, account, container, obj))
-
                 if obj and is_success(resp.status_int) and req.method == 'PUT':
                     webhook = req.headers.get("x-function-url")
                     webhook_req = urllib2.Request(webhook, data=json.dumps({
