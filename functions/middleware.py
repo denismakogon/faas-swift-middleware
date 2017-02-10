@@ -37,7 +37,7 @@ class FunctionsWebhookMiddleware(object):
         resp = req.get_response(self.app)
         self.logger.info("Serverless: available headers: {}".format(str(dict(req.headers))))
         try:
-            if "X-Functions-URL" in req.headers:
+            if "X-Function-URL" in req.headers:
                 version, account, container, obj = split_path(req.path_info, 4, 4, True)
                 self.logger.info("Serverless: version {}, account {}, container {}, object {}"
                                  .format(version, account, container, obj))
