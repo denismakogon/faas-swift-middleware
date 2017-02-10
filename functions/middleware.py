@@ -34,16 +34,14 @@ class FunctionsWebhookMiddleware(object):
 
     def __call__(self, env, start_response):
         req = Request(env)
+        resp = req.get_response(self.app)
         try:
             if "x-function-url" in req.headers:
                 version, account, container, obj = split_path(req.path_info, 4, 4, True)
                 self.logger.info("Version {}, account {}, container {}, object {}"
                                  .format(version, account, container, obj))
 
-                resp = req.get_response(self.app)
                 if obj and is_success(resp.status_int) and req.method == 'PUT':
-                    # container_info may have our new sysmeta key
-                    # create a POST request with obj name as body
                     webhook = req.headers.get("x-function-url")
                     webhook_req = urllib2.Request(webhook, data=json.dumps({
                         "x-auth-token": req.headers.get("x-auth-token"),
@@ -68,6 +66,7 @@ class FunctionsWebhookMiddleware(object):
             # not an object request
             pass
 
+        self.logger.info("Skipping functions middleware due to absence of function URL")
         return resp
 
 
