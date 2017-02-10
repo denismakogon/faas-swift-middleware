@@ -75,6 +75,6 @@ def filter_factory(global_conf, **local_conf):
     conf = global_conf.copy()
     conf.update(local_conf)
 
-    def webhook_filter(app, conf):
+    def webhook_filter(app):
         return FunctionsWebhookMiddleware(app, conf)
     return webhook_filter
