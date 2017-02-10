@@ -16,7 +16,6 @@ import json
 from swift.common.http import is_success
 from swift.common.swob import Request
 from swift.common.utils import split_path, get_logger
-from swift.common.request_helper import get_sys_meta_prefix
 from swift.proxy.controllers.base import get_container_info
 
 from eventlet import Timeout
@@ -26,63 +25,49 @@ if six.PY3:
 else:
     from eventlet.green import urllib2
 
-# x-container-sysmeta-webhook
-SYSMETA_WEBHOOK = get_sys_meta_prefix('container') + 'webhook'
 
-
-# Based on http://docs.openstack.org/developer/swift/development_middleware.html
 class FunctionsWebhookMiddleware(object):
 
     def __init__(self, app, conf):
         self.app = app
-        self.logger = get_logger(conf, log_route='functions_webhook')
+        self.logger = get_logger(conf, log_route='serverless_functions')
 
     def __call__(self, env, start_response):
         req = Request(env)
-        obj = None
         try:
-            version, account, container, obj = split_path(req.path_info, 4, 4, True)
+            if "x-function-url" in req.headers:
+                version, account, container, obj = split_path(req.path_info, 4, 4, True)
+                self.logger.info("Version {}, account {}, container {}, object {}"
+                                 .format(version, account, container, obj))
+
+                resp = req.get_response(self.app)
+                if obj and is_success(resp.status_int) and req.method == 'PUT':
+                    # container_info may have our new sysmeta key
+                    # create a POST request with obj name as body
+                    webhook = req.headers.get("x-function-url")
+                    webhook_req = urllib2.Request(webhook, data=json.dumps({
+                        "x-auth-token": req.headers.get("x-auth-token"),
+                        "version": version,
+                        "account": account,
+                        "container": container,
+                        "object": obj,
+                        "project_id": account[account.index('_') + 1:],
+                    }))
+                    with Timeout(60):
+                        try:
+                            result = urllib2.urlopen(webhook_req).read()
+                            self.logger.info("Function worked fine. Result {}"
+                                             .format(str(result)))
+                        except (Exception, Timeout):
+                            self.logger.exception(
+                                'failed POST to webhook %s' % webhook)
+                        else:
+                            self.logger.info(
+                                'successfully called webhook %s' % webhook)
         except ValueError:
             # not an object request
             pass
 
-        if 'x-webhook' in req.headers:
-            # translate user's request header to sysmeta
-            req.headers[SYSMETA_WEBHOOK] = req.headers['x-webhook']
-
-        if 'x-remove-webhook' in req.headers:
-            # empty value will tombstone sysmeta
-            req.headers[SYSMETA_WEBHOOK] = ''
-
-        # account and object storage will ignore x-container-sysmeta-*
-        resp = req.get_response(self.app)
-        if obj and is_success(resp.status_int) and req.method == 'PUT':
-            container_info = get_container_info(req.environ, self.app)
-            # container_info may have our new sysmeta key
-            webhook = container_info['sysmeta'].get('webhook')
-            if webhook:
-                # create a POST request with obj name as body
-                webhook_req = urllib2.Request(webhook, data=json.dumps({
-                    "x-auth-token": req.headers.get("X-Auth-Token"),
-                    "version": version,
-                    "account": account,
-                    "container": container,
-                    "object": obj,
-                    "project_id": account[account.index('_') + 1:],
-                }))
-                with Timeout(60):
-                    try:
-                        urllib2.urlopen(webhook_req).read()
-                    except (Exception, Timeout):
-                        self.logger.exception(
-                            'failed POST to webhook %s' % webhook)
-                    else:
-                        self.logger.info(
-                            'successfully called webhook %s' % webhook)
-        if 'x-container-sysmeta-webhook' in resp.headers:
-            # translate sysmeta from the backend resp to
-            # user-visible client resp header
-            resp.headers['x-webhook'] = resp.headers[SYSMETA_WEBHOOK]
         return resp
 
 
