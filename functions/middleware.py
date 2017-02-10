@@ -16,7 +16,6 @@ import json
 from swift.common.http import is_success
 from swift.common.swob import Request
 from swift.common.utils import split_path, get_logger
-from swift.proxy.controllers.base import get_container_info
 
 from eventlet import Timeout
 import six
@@ -53,9 +52,12 @@ class FunctionsWebhookMiddleware(object):
                     })
                     self.logger.info("Serverless: data to send to a function {}".format(str(data)))
                     webhook_req = urllib2.Request(webhook, data=data)
+                    webhook_req.add_header('Content-Type', 'application/json; charset=utf-8')
+                    data_as_bytes = data.encode('utf-8')
+                    webhook_req.add_header('Content-Length', len(data_as_bytes))
                     with Timeout(60):
                         try:
-                            result = urllib2.urlopen(webhook_req).read()
+                            result = urllib2.urlopen(webhook_req, data_as_bytes).read()
                             self.logger.info("Serverless: function worked fine. Result {}"
                                              .format(str(result)))
                         except (Exception, Timeout) as ex:
